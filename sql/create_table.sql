@@ -28,6 +28,7 @@ create table if not exists user
 create table if not exists chart
 (
     id           bigint auto_increment comment 'id' primary key,
+    userId       bigint                                 not null comment '创建用户id',
     goal         text                                   null comment '分析目标',
     chartData    text                                   null comment '图表数据',
     chartType    varchar(128)                           null comment '图表类型',

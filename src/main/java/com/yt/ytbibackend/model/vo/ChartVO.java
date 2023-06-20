@@ -1,22 +1,21 @@
-package com.yt.ytbibackend.model.entity;
+package com.yt.ytbibackend.model.vo;
 
 import com.baomidou.mybatisplus.annotation.*;
+import lombok.Data;
 
 import java.io.Serializable;
 import java.util.Date;
-import lombok.Data;
 
 /**
- * 图标信息表
+ * 图标信息表返回类
  * @TableName chart
  */
 @TableName(value ="chart")
 @Data
-public class Chart implements Serializable {
+public class ChartVO implements Serializable {
     /**
      * id
      */
-    @TableId(type = IdType.ASSIGN_ID)
     private Long id;
 
     /**
@@ -59,12 +58,6 @@ public class Chart implements Serializable {
      * 更新时间
      */
     private Date updateTime;
-
-    /**
-     * 是否删除
-     */
-    @TableLogic
-    private Integer isDelete;
 
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;
