@@ -11,10 +11,6 @@ import java.io.Serializable;
  */
 @Data
 public class ChartAddRequest implements Serializable {
-    /**
-     * 创建用户id
-     */
-    private Long userId;
 
     /**
      * 分析目标
