@@ -62,7 +62,12 @@ public class ChartController {
         }
         Chart chart = new Chart();
         BeanUtils.copyProperties(chartAddRequest, chart);
-        boolean result = chartService.save(chart);
+        User loginUser = userService.getLoginUser(request);
+        if (loginUser == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
+        chart.setUserId(loginUser.getId());
+        chartService.save(chart);
         long newChartId = chart.getId();
         return ResultUtils.success(newChartId);
     }
