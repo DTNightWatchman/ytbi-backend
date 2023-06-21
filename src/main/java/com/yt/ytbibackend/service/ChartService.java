@@ -10,7 +10,7 @@ import com.yt.ytbibackend.model.vo.ChartVO;
 import javax.servlet.http.HttpServletRequest;
 
 /**
-* @author lenovo
+* @author YT摆渡人
 * @description 针对表【chart(图标信息表)】的数据库操作Service
 * @createDate 2023-06-21 01:40:27
 */

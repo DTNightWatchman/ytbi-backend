@@ -27,7 +27,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
-* @author lenovo
+* @author YT摆渡人
 * @description 针对表【chart(图标信息表)】的数据库操作Service实现
 * @createDate 2023-06-21 01:40:27
 */
@@ -35,21 +35,21 @@ import java.util.stream.Collectors;
 public class ChartServiceImpl extends ServiceImpl<ChartMapper, Chart>
     implements ChartService{
 
-    @Resource
-    private UserService userService;
-
     @Override
     public QueryWrapper<Chart> getQueryWrapper(ChartQueryRequest chartQueryRequest) {
         QueryWrapper<Chart> queryWrapper = new QueryWrapper<>();
         if (chartQueryRequest == null) {
             return queryWrapper;
         }
+        Long id = chartQueryRequest.getId();
+        String goal = chartQueryRequest.getGoal();
+        String chartType = chartQueryRequest.getChartType();
+        Long userId = chartQueryRequest.getUserId();
         String sortField = chartQueryRequest.getSortField();
         String sortOrder = chartQueryRequest.getSortOrder();
-        Long id = chartQueryRequest.getId();
-        Long userId = chartQueryRequest.getUserId();
-
         queryWrapper.eq(ObjectUtils.isNotEmpty(id), "id", id);
+        queryWrapper.eq(StringUtils.isNotEmpty(goal), "goal", goal);
+        queryWrapper.eq(StringUtils.isNotEmpty(chartType), "chartType", chartType);
         queryWrapper.eq(ObjectUtils.isNotEmpty(userId), "userId", userId);
         queryWrapper.eq("isDelete", false);
         queryWrapper.orderBy(SqlUtils.validSortField(sortField), sortOrder.equals(CommonConstant.SORT_ORDER_ASC),
