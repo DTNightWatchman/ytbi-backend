@@ -4,13 +4,11 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.yt.ytbibackend.constant.CommonConstant;
+import com.yt.ytbibackend.mapper.ChartMapper;
 import com.yt.ytbibackend.model.dto.chart.ChartQueryRequest;
 import com.yt.ytbibackend.model.entity.Chart;
-import com.yt.ytbibackend.model.entity.User;
 import com.yt.ytbibackend.model.vo.ChartVO;
 import com.yt.ytbibackend.service.ChartService;
-import com.yt.ytbibackend.mapper.ChartMapper;
-import com.yt.ytbibackend.service.UserService;
 import com.yt.ytbibackend.utils.SqlUtils;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ObjectUtils;
@@ -18,12 +16,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
-import javax.servlet.http.HttpServletRequest;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
