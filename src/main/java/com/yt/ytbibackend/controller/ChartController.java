@@ -1,4 +1,5 @@
 package com.yt.ytbibackend.controller;
+import java.util.Date;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.google.gson.Gson;
@@ -17,11 +18,13 @@ import com.yt.ytbibackend.constant.FileConstant;
 import com.yt.ytbibackend.constant.UserConstant;
 import com.yt.ytbibackend.exception.BusinessException;
 import com.yt.ytbibackend.exception.ThrowUtils;
+import com.yt.ytbibackend.manager.AiManager;
 import com.yt.ytbibackend.model.dto.chart.*;
 import com.yt.ytbibackend.model.dto.file.UploadFileRequest;
 import com.yt.ytbibackend.model.entity.Chart;
 import com.yt.ytbibackend.model.entity.User;
 import com.yt.ytbibackend.model.enums.FileUploadBizEnum;
+import com.yt.ytbibackend.model.vo.BiResponse;
 import com.yt.ytbibackend.model.vo.ChartVO;
 import com.yt.ytbibackend.service.ChartService;
 import com.yt.ytbibackend.service.UserService;
@@ -161,6 +164,9 @@ public class ChartController {
         return ResultUtils.success(chartService.getChartVOPage(chartPage));
     }
 
+    @Resource
+    private AiManager aiManager;
+
 
 
     /**
@@ -172,46 +178,62 @@ public class ChartController {
      * @return
      */
     @PostMapping("/gen")
-    public BaseResponse<String> genChartByAi(@RequestPart("file") MultipartFile multipartFile,
+    public BaseResponse<BiResponse> genChartByAi(@RequestPart("file") MultipartFile multipartFile,
                                              GenChartByAiRequest genChartByAiRequest, HttpServletRequest request) {
+        User loginUser = userService.getLoginUser(request);
+        if (loginUser == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
         String name = genChartByAiRequest.getName();
         String goal = genChartByAiRequest.getGoal();
         String chartType = genChartByAiRequest.getChartType();
         // 校验
         ThrowUtils.throwIf(StringUtils.isBlank(goal), ErrorCode.PARAMS_ERROR, "目标为空");
         ThrowUtils.throwIf(StringUtils.isBlank(name) && name.length() > 100, ErrorCode.PARAMS_ERROR, "名称为空或过长");
+        String userGoal = goal;
+        if (StringUtils.isNotBlank(chartType)) {
+            userGoal += ",请使用" + chartType;
+        }
         // 压缩后的数据
         String res = ExcelUtils.excelToCsv(multipartFile);
         // 构建请求
-        StringBuilder userInput = new StringBuilder();
-        userInput.append("你是一个数据分析师，接下来我会给你分析目标和原始数据，请告诉我你的分析结论.\n");
-        userInput.append("分析目标:").append(goal).append("\n");
-        userInput.append("我的数据:").append(res).append("\n");
+        long biModelId = 1671934662349438978L;
+//        分析需求:
+//        线型图
+//        原始数据:
+//        日期,用户数
+//        1号,10
+//        2号,20
+//        3号,30
+        StringBuilder userInput = new StringBuilder("分析需求:\n");
+        userInput.append(userGoal).append("\n");
+        userInput.append("原始数据:\n");
+        userInput.append(res);
 
-        return ResultUtils.success(userInput.toString());
+        String result = aiManager.doChat(biModelId, userInput.toString());
+        String[] split = result.split("【【【【【");
+        if (split.length < 3) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "ai生成结果错误");
+        }
+        String option = split[1];
+        String analyzeResult = split[2];
+        BiResponse biResponse = new BiResponse();
+        biResponse.setGenOption(option);
+        biResponse.setGenResult(analyzeResult);
+        // 插入数据
+        Chart chart = new Chart();
+        chart.setUserId(loginUser.getId());
+        chart.setGoal(goal);
+        chart.setName(name);
+        chart.setChartData(res);
+        chart.setChartType(chartType);
+        chart.setGenChart(option);
+        chart.setGenResult(analyzeResult);
+        boolean save = chartService.save(chart);
+        ThrowUtils.throwIf(!save, ErrorCode.SYSTEM_ERROR, "保存图表错误");
 
-//        User loginUser = userService.getLoginUser(request);
-//        // 文件目录：根据业务、用户来划分
-//        String uuid = RandomStringUtils.randomAlphanumeric(8);
-//        String filename = uuid + "-" + multipartFile.getOriginalFilename();
-//        File file = null;
-//        try {
-//            // 上传文件
-//            multipartFile.transferTo(file);
-//            // 返回可访问地址
-//            return ResultUtils.success("");
-//        } catch (Exception e) {
-//            //log.error("file upload error, filepath = " + filepath, e);
-//            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "上传失败");
-//        } finally {
-//            if (file != null) {
-//                // 删除临时文件
-//                boolean delete = file.delete();
-//                if (!delete) {
-//                    //log.error("file delete error, filepath = {}", filepath);
-//                }
-//            }
-//        }
+        return ResultUtils.success(biResponse);
+
     }
 
     /**
