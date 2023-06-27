@@ -24,5 +24,5 @@ spring:
     password: 123456
 yuapi:
   client:
-    access-key: dhwq5pycb3hgnzmne9si0ma60uul9bm0
-    secret-key: aagzdq284u6h2s2ghs2k0kjfn165v1cc
+    access-key: xxx
+    secret-key: xxx

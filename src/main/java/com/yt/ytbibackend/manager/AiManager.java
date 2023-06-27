@@ -33,6 +33,12 @@ public class AiManager {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "ai响应错误");
         }
         //System.out.println(response);
+        if (response.getData() == null) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "ai响应错误");
+        }
+        if (response.getData().getContent() == null) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "ai响应错误");
+        }
         return response.getData().getContent();
     }
 }
