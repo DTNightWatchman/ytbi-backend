@@ -1,6 +1,8 @@
 package com.yt.ytbibackend.controller;
+import java.util.Arrays;
 import java.util.Date;
 
+import cn.hutool.core.io.FileUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.google.gson.Gson;
 
@@ -167,6 +169,21 @@ public class ChartController {
     @Resource
     private AiManager aiManager;
 
+    /**
+     * 校验文件安全
+     * @param multipartFile
+     */
+    private void ifSafeFile(MultipartFile multipartFile) {
+        long size = multipartFile.getSize();
+        final long ONE_MB = 1024 * 1024;
+        ThrowUtils.throwIf(size > ONE_MB, ErrorCode.PARAMS_ERROR, "文件过大");
+        String originalFilename = multipartFile.getOriginalFilename();
+        // 校验文件后缀
+        String suffix = FileUtil.getSuffix(originalFilename);
+        final List<String> validFileSuffixList = Arrays.asList("xlsx", "csv");
+        ThrowUtils.throwIf(!validFileSuffixList.contains(suffix), ErrorCode.PARAMS_ERROR, "文件后缀非法");
+    }
+
 
 
     /**
@@ -188,6 +205,7 @@ public class ChartController {
         String goal = genChartByAiRequest.getGoal();
         String chartType = genChartByAiRequest.getChartType();
         // 校验
+        ifSafeFile(multipartFile);
         ThrowUtils.throwIf(StringUtils.isBlank(goal), ErrorCode.PARAMS_ERROR, "目标为空");
         ThrowUtils.throwIf(StringUtils.isBlank(name) && name.length() > 100, ErrorCode.PARAMS_ERROR, "名称为空或过长");
         String userGoal = goal;
