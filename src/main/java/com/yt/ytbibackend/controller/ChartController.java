@@ -21,6 +21,7 @@ import com.yt.ytbibackend.constant.UserConstant;
 import com.yt.ytbibackend.exception.BusinessException;
 import com.yt.ytbibackend.exception.ThrowUtils;
 import com.yt.ytbibackend.manager.AiManager;
+import com.yt.ytbibackend.manager.RedisLimiterManager;
 import com.yt.ytbibackend.model.dto.chart.*;
 import com.yt.ytbibackend.model.dto.file.UploadFileRequest;
 import com.yt.ytbibackend.model.entity.Chart;
@@ -169,6 +170,9 @@ public class ChartController {
     @Resource
     private AiManager aiManager;
 
+    @Resource
+    private RedisLimiterManager redisLimiterManager;
+
     /**
      * 校验文件安全
      * @param multipartFile
@@ -201,6 +205,7 @@ public class ChartController {
         if (loginUser == null) {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
+        redisLimiterManager.doRateLimit("genChartByAi_" + loginUser.getId());
         String name = genChartByAiRequest.getName();
         String goal = genChartByAiRequest.getGoal();
         String chartType = genChartByAiRequest.getChartType();
