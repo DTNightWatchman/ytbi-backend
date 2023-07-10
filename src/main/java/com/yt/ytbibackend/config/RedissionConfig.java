@@ -17,19 +17,16 @@ public class RedissionConfig  {
 
     private Integer database;
 
-    private String address;
+    private String host;
 
     private Integer port;
-
-    private String password;
 
     @Bean
     public RedissonClient getRedissonClient() {
         Config config = new Config();
         config.useSingleServer()
                 .setDatabase(database)
-                .setAddress("redis://" + address + ":" + port)
-                .setPassword(password);
+                .setAddress("redis://" + host + ":" + port);
         RedissonClient redissonClient = Redisson.create(config);
         return redissonClient;
     }
