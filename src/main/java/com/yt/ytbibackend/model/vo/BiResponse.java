@@ -8,6 +8,8 @@ import lombok.Data;
 @Data
 public class BiResponse {
 
+    private Long chartId;
+
     private String genOption;
 
     private String genResult;
