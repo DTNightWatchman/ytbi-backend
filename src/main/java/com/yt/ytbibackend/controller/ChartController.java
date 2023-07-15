@@ -3,6 +3,7 @@ import java.util.Arrays;
 import java.util.Date;
 
 import cn.hutool.core.io.FileUtil;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.google.gson.Gson;
@@ -152,6 +153,24 @@ public class ChartController {
         }
         return ResultUtils.success(chartService.getChartVO(chart));
     }
+
+    /**
+     * 分页获取列表（封装类）
+     * @param chartQueryRequest
+     * @return
+     */
+    @AuthCheck(mustRole = "admin")
+    @PostMapping("/admin/list/page/vo")
+    public BaseResponse<Page<ChartVO>> listChartVOByPageAll(@RequestBody ChartQueryRequest chartQueryRequest) {
+        long current = chartQueryRequest.getCurrent();
+        long size = chartQueryRequest.getPageSize();
+        // 限制爬虫
+        ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR);
+        Page<Chart> chartPage = chartService.page(new Page<>(current, size),
+                chartService.getQueryWrapper(chartQueryRequest));
+        return ResultUtils.success(chartService.getChartVOPage(chartPage));
+    }
+
     /**
      * 分页获取列表（封装类）
      * @param chartQueryRequest
@@ -165,8 +184,11 @@ public class ChartController {
         long size = chartQueryRequest.getPageSize();
         // 限制爬虫
         ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR);
-        Page<Chart> chartPage = chartService.page(new Page<>(current, size),
-                chartService.getQueryWrapper(chartQueryRequest));
+        QueryWrapper<Chart> queryWrapper = chartService.getQueryWrapper(chartQueryRequest);
+        User loginUser = userService.getLoginUser(request);
+        ThrowUtils.throwIf(loginUser == null, ErrorCode.NOT_LOGIN_ERROR);
+        queryWrapper.eq("userId", loginUser.getId());
+        Page<Chart> chartPage = chartService.page(new Page<>(current, size), queryWrapper);
         return ResultUtils.success(chartService.getChartVOPage(chartPage));
     }
 
@@ -195,6 +217,7 @@ public class ChartController {
     private ThreadPoolExecutor threadPoolExecutor;
 
     @PostMapping("/gen")
+    @AuthCheck(mustRole = "admin")
     public BaseResponse<BiResponse> genChartByAi(@RequestPart("file") MultipartFile multipartFile,
                                                  GenChartByAiRequest genChartByAiRequest, HttpServletRequest request) {
         User loginUser = userService.getLoginUser(request);
