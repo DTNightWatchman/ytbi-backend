@@ -1,6 +1,7 @@
 package com.yt.ytbibackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yt.ytbibackend.model.dto.chart.ChartQueryRequest;
 import com.yt.ytbibackend.model.entity.Chart;
@@ -21,4 +22,19 @@ public interface ChartService extends IService<Chart> {
     Page<ChartVO> getChartVOPage(Page<Chart> chartPage);
 
     ChartVO getChartVO(Chart chart);
+
+    /**
+     * 拦截修改异常并修改数据库中状态
+     * @param chartId
+     * @param execMessage
+     */
+    void handleChartUpdateError(long chartId, String execMessage);
+
+    /**
+     * 构造请求
+     * @param chart
+     * @return
+     */
+    String buildInput(Chart chart);
+
 }

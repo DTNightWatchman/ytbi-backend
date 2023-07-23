@@ -1,14 +1,18 @@
 package com.yt.ytbibackend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.yt.ytbibackend.common.ErrorCode;
 import com.yt.ytbibackend.constant.CommonConstant;
+import com.yt.ytbibackend.exception.ThrowUtils;
 import com.yt.ytbibackend.mapper.ChartMapper;
 import com.yt.ytbibackend.model.dto.chart.ChartQueryRequest;
 import com.yt.ytbibackend.model.entity.Chart;
 import com.yt.ytbibackend.model.vo.ChartVO;
 import com.yt.ytbibackend.service.ChartService;
+import com.yt.ytbibackend.utils.ExcelUtils;
 import com.yt.ytbibackend.utils.SqlUtils;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ObjectUtils;
@@ -79,6 +83,33 @@ public class ChartServiceImpl extends ServiceImpl<ChartMapper, Chart>
         return chartVO;
     }
 
+    @Override
+    public void handleChartUpdateError(long chartId, String execMessage)  {
+        UpdateWrapper<Chart> chartUpdateWrapper = new UpdateWrapper<>();
+        chartUpdateWrapper.set("status", 3);
+        chartUpdateWrapper.set("execMessage", execMessage);
+        chartUpdateWrapper.eq("id", chartId);
+        boolean update = this.update(chartUpdateWrapper);
+        if (!update) {
+            log.error("修改图表状态失败 - " + chartId);
+        }
+    }
+
+    @Override
+    public String buildInput(Chart chart) {
+        String goal = chart.getGoal();
+        String chartType = chart.getChartType();
+        String userGoal = goal;
+        if (StringUtils.isNotBlank(chartType)) {
+            userGoal += ",请使用" + chartType;
+        }
+        // 压缩后的数据
+        String res = chart.getChartData();
+
+        return "分析需求:\n" + userGoal + "\n" +
+                "原始数据:\n" +
+                res;
+    }
 
 }
 

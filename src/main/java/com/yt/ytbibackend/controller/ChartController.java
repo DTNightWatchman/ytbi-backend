@@ -16,10 +16,12 @@ import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 
 import com.yt.ytbibackend.annotation.AuthCheck;
+import com.yt.ytbibackend.bizmq.BiMessageProducer;
 import com.yt.ytbibackend.common.BaseResponse;
 import com.yt.ytbibackend.common.DeleteRequest;
 import com.yt.ytbibackend.common.ErrorCode;
 import com.yt.ytbibackend.common.ResultUtils;
+import com.yt.ytbibackend.constant.CommonConstant;
 import com.yt.ytbibackend.constant.FileConstant;
 import com.yt.ytbibackend.constant.UserConstant;
 import com.yt.ytbibackend.exception.BusinessException;
@@ -239,7 +241,6 @@ public class ChartController {
         // 压缩后的数据
         String res = ExcelUtils.excelToCsv(multipartFile);
         // 构建请求
-        long biModelId = 1671934662349438978L;
 //        分析需求:
 //        线型图
 //        原始数据:
@@ -252,7 +253,7 @@ public class ChartController {
         userInput.append("原始数据:\n");
         userInput.append(res);
 
-        String result = aiManager.doChat(biModelId, userInput.toString());
+        String result = aiManager.doChat(CommonConstant.BI_MODEL_ID, userInput.toString());
         String[] split = result.split("【【【【【");
         if (split.length < 3) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "ai生成结果错误");
@@ -308,7 +309,6 @@ public class ChartController {
         // 压缩后的数据
         String res = ExcelUtils.excelToCsv(multipartFile);
         // 构建请求
-        long biModelId = 1671934662349438978L;
 //        分析需求:
 //        线型图
 //        原始数据:
@@ -339,14 +339,14 @@ public class ChartController {
             chartUpdateWrapper.eq("id", chart.getId());
             boolean b = chartService.update(chartUpdateWrapper);
             if (!b) {
-                handleChartUpdateError(chart.getId(), "修改图表状态异常");
+                chartService.handleChartUpdateError(chart.getId(), "修改图表状态异常");
                 return;
             }
-            String result = aiManager.doChat(biModelId, userInput.toString());
+            String result = aiManager.doChat(CommonConstant.BI_MODEL_ID, userInput.toString());
             String[] split = result.split("【【【【【");
             if (split.length < 3) {
                 //throw new BusinessException(ErrorCode.SYSTEM_ERROR, "ai生成结果错误");
-                handleChartUpdateError(chart.getId(), "ai生成结果错误");
+                chartService.handleChartUpdateError(chart.getId(), "ai生成结果错误");
                 return;
             }
             String option = split[1];
@@ -356,7 +356,7 @@ public class ChartController {
             chartUpdateWrapper.set("genResult", analyzeResult);
             boolean update = chartService.update(chartUpdateWrapper);
             if (!update) {
-                handleChartUpdateError(chart.getId(), "修改状态失败");
+                chartService.handleChartUpdateError(chart.getId(), "修改状态失败");
             }
         }, threadPoolExecutor);
 //        BiResponse biResponse = new BiResponse();
@@ -367,16 +367,61 @@ public class ChartController {
         return ResultUtils.success(biResponse);
     }
 
-    private void handleChartUpdateError(long chartId, String execMessage) {
-        UpdateWrapper<Chart> chartUpdateWrapper = new UpdateWrapper<>();
-        chartUpdateWrapper.set("status", 3);
-        chartUpdateWrapper.set("execMessage", execMessage);
-        chartUpdateWrapper.eq("id", chartId);
-        boolean update = chartService.update(chartUpdateWrapper);
-        if (!update) {
-            log.error("修改图表状态失败 - " + chartId);
+
+    @Resource
+    private BiMessageProducer biMessageProducer;
+    /**
+     * 文件上传,发送到消息队列中,异步生成结果
+     *
+     * @param multipartFile
+     * @param genChartByAiRequest
+     * @param request
+     * @return
+     */
+    @PostMapping("/v3/gen")
+    public BaseResponse<BiResponse> genChartByAiAsyncMq(@RequestPart("file") MultipartFile multipartFile,
+                                                      GenChartByAiRequest genChartByAiRequest, HttpServletRequest request) {
+        User loginUser = userService.getLoginUser(request);
+        if (loginUser == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
+        redisLimiterManager.doRateLimit("genChartByAi_" + loginUser.getId());
+        String name = genChartByAiRequest.getName();
+        String goal = genChartByAiRequest.getGoal();
+        String chartType = genChartByAiRequest.getChartType();
+        // 校验
+        ifSafeFile(multipartFile);
+        ThrowUtils.throwIf(StringUtils.isBlank(goal), ErrorCode.PARAMS_ERROR, "目标为空");
+        ThrowUtils.throwIf(StringUtils.isBlank(name) && name.length() > 100, ErrorCode.PARAMS_ERROR, "名称为空或过长");
+        String userGoal = goal;
+        if (StringUtils.isNotBlank(chartType)) {
+            userGoal += ",请使用" + chartType;
+        }
+        // 压缩后的数据
+        String res = ExcelUtils.excelToCsv(multipartFile);
+        // 构建请求
+        long biModelId = 1671934662349438978L;
+
+        StringBuilder userInput = new StringBuilder("分析需求:\n");
+        userInput.append(userGoal).append("\n");
+        userInput.append("原始数据:\n");
+        userInput.append(res);
+        // 先进行插入数据库操作
+        Chart chart = new Chart();
+        chart.setName(name);
+        chart.setGoal(goal);
+        chart.setChartData(res);
+        chart.setChartType(chartType);
+        chart.setStatus(0); // 设置等待的初始状态
+        chart.setUserId(loginUser.getId());
+        boolean save = chartService.save(chart);
+        ThrowUtils.throwIf(!save, ErrorCode.SYSTEM_ERROR, "保存图表失败");
+        long newChartId = chart.getId();
+        biMessageProducer.sendMessage(String.valueOf(newChartId));
+        return ResultUtils.success(new  BiResponse());
     }
+
+
 
     /**
      * 分页获取当前的数据的资源列表
