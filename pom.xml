@@ -160,8 +160,13 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
+            <version>4.1.6.Final</version>
         </dependency>
-
+        <!-- SpringBoot集成websocket -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
 
     </dependencies>
 
