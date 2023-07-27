@@ -1,6 +1,5 @@
 package com.yt.ytbibackend.controller;
-import java.util.Arrays;
-import java.util.Date;
+import java.util.*;
 
 import cn.hutool.core.io.FileUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -9,7 +8,6 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.google.gson.Gson;
 
 import java.io.File;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadPoolExecutor;
 import javax.annotation.Resource;
@@ -272,6 +270,7 @@ public class ChartController {
         chart.setChartType(chartType);
         chart.setGenChart(option);
         chart.setGenResult(analyzeResult);
+        chart.setStatus(2);
         boolean save = chartService.save(chart);
         ThrowUtils.throwIf(!save, ErrorCode.SYSTEM_ERROR, "保存图表错误");
 
@@ -367,6 +366,9 @@ public class ChartController {
         return ResultUtils.success(biResponse);
     }
 
+    private Gson gson = new Gson();
+
+
 
     @Resource
     private BiMessageProducer biMessageProducer;
@@ -380,7 +382,8 @@ public class ChartController {
      */
     @PostMapping("/v3/gen")
     public BaseResponse<BiResponse> genChartByAiAsyncMq(@RequestPart("file") MultipartFile multipartFile,
-                                                      GenChartByAiRequest genChartByAiRequest, HttpServletRequest request) {
+                                                      GenChartByAiRequest genChartByAiRequest, HttpServletRequest request, String auth) {
+        System.out.println(auth);
         User loginUser = userService.getLoginUser(request);
         if (loginUser == null) {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
@@ -417,7 +420,11 @@ public class ChartController {
         boolean save = chartService.save(chart);
         ThrowUtils.throwIf(!save, ErrorCode.SYSTEM_ERROR, "保存图表失败");
         long newChartId = chart.getId();
-        biMessageProducer.sendMessage(String.valueOf(newChartId));
+        Map<String, String> messMap = new HashMap<>();
+        messMap.put("chartId", String.valueOf(newChartId));
+        messMap.put("auth", auth);
+
+        biMessageProducer.sendMessage(gson.toJson(messMap));
         return ResultUtils.success(new  BiResponse());
     }
 

@@ -1,25 +1,19 @@
 package com.yt.ytbibackend.bizmessage;
 
 import cn.hutool.core.lang.UUID;
-import com.yt.ytbibackend.exception.BusinessException;
-import com.yt.ytbibackend.model.entity.User;
-import com.yt.ytbibackend.service.UserService;
+import com.google.gson.Gson;
+import com.yt.ytbibackend.utils.SpringBeanUtils;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.Redisson;
-import org.redisson.RedissonMap;
 import org.redisson.api.RMap;
 import org.redisson.api.RedissonClient;
-import org.springframework.boot.autoconfigure.cache.CacheProperties;
 import org.springframework.stereotype.Component;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
 import javax.annotation.PostConstruct;
-import javax.annotation.Resource;
-import javax.servlet.http.HttpServletRequest;
 import javax.websocket.*;
 import javax.websocket.server.ServerEndpoint;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -28,11 +22,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Slf4j
 public class WebSocketServer {
 
-    @Resource
-    private RedissonClient redissonClient;
-
-    @Resource
-    private UserService userService;
 
     @PostConstruct
     public void init() {
@@ -42,8 +31,8 @@ public class WebSocketServer {
     private static final AtomicInteger OnlineCount = new AtomicInteger(0);
     // concurrent包的线程安全Set，用来存放每个客户端对应的Session对象。
     private static CopyOnWriteArraySet<Session> SessionSet = new CopyOnWriteArraySet<Session>();
-
-
+    private RedissonClient redissonClient = SpringBeanUtils.getBean(RedissonClient.class);
+    private RMap<String, String> idToUser = redissonClient.getMap("biproject:websocketSessions");
     /**
      * 连接建立成功调用的方法
      */
@@ -55,11 +44,17 @@ public class WebSocketServer {
         log.info(String.valueOf(session.getRequestURI()));
         log.info("有连接加入，当前连接数为：{},sessionId={}", cnt, session.getId());
         // 将数据存储到redis中
-        RMap<String, Session> map = redissonClient.getMap("biproject:websocketSessions");
         String uuid = UUID.randomUUID(true).toString();
-        map.put(uuid, session);
+        idToUser.put(uuid, session.getId());
+
+        session.getUserProperties().put("auth", uuid);
         // 返回建立连接信息
-        SendMessage(session, uuid);
+        Map<String, String> jsonMap = new HashMap<>();
+        jsonMap.put("code", "0");
+        jsonMap.put("data", uuid);
+        Gson gson = new Gson();
+        String json = gson.toJson(jsonMap);
+        SendMessage(session, json);
     }
 
     /**
@@ -69,6 +64,9 @@ public class WebSocketServer {
     public void onClose(Session session) {
         SessionSet.remove(session);
         int cnt = OnlineCount.decrementAndGet();
+        String uuid = (String) session.getUserProperties().get("auth");
+        // 移除连接信息
+        idToUser.remove(uuid);
         log.info("有连接关闭，当前连接数为：{}", cnt);
     }
 
@@ -114,7 +112,6 @@ public class WebSocketServer {
      * 群发消息
      *
      * @param message
-     *
      * @throws IOException
      */
     public static void BroadCastInfo(String message) throws IOException {
